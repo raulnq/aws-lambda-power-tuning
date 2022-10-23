@@ -1,0 +1,52 @@
+service: target-app
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: dotnet6
+  environment:
+    QUEUEURL: { Ref: targetQueue }
+  iam:
+    role:
+      statements: 
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - sqs:*
+          Resource: '*'
+package:
+  individually: true
+
+functions:
+  post-targets:
+    timeout: 30
+    handler: TargetFunction::TargetFunction.Function::FunctionHandler
+    package:
+      artifact: src/TargetFunction/bin/Release/net6.0/TargetFunction.zip
+    events:
+      - http:
+          path: /targets
+          method: post
+
+resources:
+  Resources:
+    targetTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: targettable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    targetQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: targetqueue
